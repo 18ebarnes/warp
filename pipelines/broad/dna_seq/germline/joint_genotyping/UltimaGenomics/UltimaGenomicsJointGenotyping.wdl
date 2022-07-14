@@ -162,13 +162,13 @@ workflow UltimaGenomicsJointGenotyping {
       basename = callset_name
   }
 
-  scatter (idx in range(length(UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf))) {
+  scatter (idx in range(length(UltimaGenomicsGermlineJointFiltering.variant_scored_vcf))) {
     # For large callsets we need to collect metrics from the shards and gather them later.
     if (!is_small_callset) {
       call Tasks.CollectVariantCallingMetrics as CollectMetricsSharded {
         input:
-          input_vcf = UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf[idx],
-          input_vcf_index = UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf_index[idx],
+          input_vcf = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf[idx],
+          input_vcf_index = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index[idx],
           metrics_filename_prefix = callset_name + "." + idx,
           dbsnp_vcf = dbsnp_vcf,
           dbsnp_vcf_index = dbsnp_vcf_index,
@@ -183,7 +183,7 @@ workflow UltimaGenomicsJointGenotyping {
   if (is_small_callset) {
     call Tasks.GatherVcfs as FinalGatherVcf {
       input:
-        input_vcfs = UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf,
+        input_vcfs = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf,
         output_vcf_name = callset_name + ".vcf.gz",
         disk_size = huge_disk
     }
@@ -247,7 +247,7 @@ workflow UltimaGenomicsJointGenotyping {
     Array[Int] fingerprinting_indices = GetFingerprintingIntervalIndices.indices_to_fingerprint
 
     scatter (idx in fingerprinting_indices) {
-      File vcfs_to_fingerprint = HardFilterAndMakeSitesOnlyVcf.variant_filtered_vcf[idx]
+      File vcfs_to_fingerprint = HardFilterAndMakeSitesOnlyVcf.variant_scored_vcf[idx]
     }
 
     call Tasks.GatherVcfs as GatherFingerprintingVcfs {
@@ -303,7 +303,7 @@ workflow UltimaGenomicsJointGenotyping {
     call Tasks.CrossCheckFingerprint as CrossCheckFingerprintSolo {
       input:
         gvcf_paths = gvcf_paths,
-        vcf_paths = HardFilterAndMakeSitesOnlyVcf.variant_filtered_vcf,
+        vcf_paths = HardFilterAndMakeSitesOnlyVcf.variant_scored_vcf,
         sample_name_map = sample_name_map,
         haplotype_database = haplotype_database,
         output_base_name = callset_name
@@ -315,8 +315,8 @@ workflow UltimaGenomicsJointGenotyping {
   File output_summary_metrics_file = select_first([CollectMetricsOnFullVcf.summary_metrics_file, GatherVariantCallingMetrics.summary_metrics_file])
 
   # Get the VCFs from either code path
-  Array[File?] output_vcf_files = if defined(FilteredGatheredVCF.output_vcf) then [FilteredGatheredVCF.output_vcf] else UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf
-  Array[File?] output_vcf_index_files = if defined(FilteredGatheredVCF.output_vcf_index) then [FilteredGatheredVCF.output_vcf_index] else UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf_index
+  Array[File?] output_vcf_files = if defined(FilteredGatheredVCF.output_vcf) then [FilteredGatheredVCF.output_vcf] else UltimaGenomicsGermlineJointFiltering.variant_scored_vcf
+  Array[File?] output_vcf_index_files = if defined(FilteredGatheredVCF.output_vcf_index) then [FilteredGatheredVCF.output_vcf_index] else UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index
 
   output {
     # Metrics from either the small or large callset
@@ -324,8 +324,8 @@ workflow UltimaGenomicsJointGenotyping {
     File summary_metrics_file = output_summary_metrics_file
 
     # Outputs from the small callset path through the wdl.
-    Array[File] output_vcfs = select_all(UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf)
-    Array[File] output_vcf_indices = select_all(UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf_index)
+    Array[File] output_vcfs = select_all(UltimaGenomicsGermlineJointFiltering.variant_scored_vcf)
+    Array[File] output_vcf_indices = select_all(UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index)
 
     # Output the interval list generated/used by this run workflow.
     Array[File] output_intervals = SplitIntervalList.output_intervals
