@@ -7,7 +7,7 @@ version 1.0
 # the filtering threshold to the final VCF.
 
 
-workflow JointVcfFiltering {
+workflow UltimaGenomicsGermlineJointFiltering {
 	input {
 		Array[File] vcf
 		Array[File] vcf_index
