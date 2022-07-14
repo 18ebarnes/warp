@@ -247,7 +247,7 @@ workflow UltimaGenomicsJointGenotyping {
     Array[Int] fingerprinting_indices = GetFingerprintingIntervalIndices.indices_to_fingerprint
 
     scatter (idx in fingerprinting_indices) {
-      File vcfs_to_fingerprint = HardFilterAndMakeSitesOnlyVcf.variant_scored_vcf[idx]
+      File vcfs_to_fingerprint = HardFilterAndMakeSitesOnlyVcf.variant_filtered_vcf[idx]
     }
 
     call Tasks.GatherVcfs as GatherFingerprintingVcfs {
@@ -303,7 +303,7 @@ workflow UltimaGenomicsJointGenotyping {
     call Tasks.CrossCheckFingerprint as CrossCheckFingerprintSolo {
       input:
         gvcf_paths = gvcf_paths,
-        vcf_paths = HardFilterAndMakeSitesOnlyVcf.variant_scored_vcf,
+        vcf_paths = HardFilterAndMakeSitesOnlyVcf.variant_filtered_vcf,
         sample_name_map = sample_name_map,
         haplotype_database = haplotype_database,
         output_base_name = callset_name
