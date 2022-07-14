@@ -237,23 +237,34 @@ task ScoreVariantAnnotations {
 	command {
 		set -e
 
-		ln -s ~{sep=" . && ln -s " model_files} .
+		zgrep -v '#' ~{vcf} > empty.txt
 
-		conda install -y --name gatk dill
+		if [-s empty.txt]; then
 
-		export GATK_LOCAL_JAR=~{default="/root/gatk.jar" gatk_override}
+			ln -s ~{sep=" . && ln -s " model_files} .
 
-		gatk --java-options "-Xmx~{command_mem}m" \
-			ScoreVariantAnnotations \
-			~{"-L " + interval_list} \
-			-V ~{vcf} \
-			-O ~{basename}.~{mode} \
-			--python-script ~{scoring_python_script} \
-			--model-prefix ~{basename} \
-			~{annotations} \
-			-mode ~{mode} \
-			--resource:extracted,extracted=true ~{extracted_training_vcf} \
-			~{resources}
+			conda install -y --name gatk dill
+
+			export GATK_LOCAL_JAR=~{default="/root/gatk.jar" gatk_override}
+
+			gatk --java-options "-Xmx~{command_mem}m" \
+				ScoreVariantAnnotations \
+				~{"-L " + interval_list} \
+				-V ~{vcf} \
+				-O ~{basename}.~{mode} \
+				--python-script ~{scoring_python_script} \
+				--model-prefix ~{basename} \
+				~{annotations} \
+				-mode ~{mode} \
+				--resource:extracted,extracted=true ~{extracted_training_vcf} \
+				~{resources}
+
+		else
+			touch ~{basename}.~{mode}.scores.hdf5
+			touch ~{basename}.~{mode}.annot.hdf5
+			ln -s ~{vcf} ~{basename}.~{mode}.vcf.gz
+			ln -s ~{vcf_index} ~{basename}.~{mode}.vcf.gz.tbi
+		fi
 	}
 	output {
 		File scores = "~{basename}.~{mode}.scores.hdf5"
