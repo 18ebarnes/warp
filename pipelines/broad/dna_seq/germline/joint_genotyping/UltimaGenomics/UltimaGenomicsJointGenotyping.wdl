@@ -2,6 +2,7 @@ version 1.0
 
 import "../../../../../../tasks/broad/JointGenotypingTasks.wdl" as Tasks
 import "../../../../../../tasks/broad/UltimaGenomicsGermlineJointFiltering.wdl" as Filtering
+import "../../../../../../tasks/broad/UltimaGenomicsGermlineFilteringThreshold.wdl" as FilteringThreshold
 
 
 # Joint Genotyping for hg38 Whole Genomes (has not been tested on hg19)
@@ -35,8 +36,20 @@ workflow UltimaGenomicsJointGenotyping {
     # than a z-score of -4.5 which is a p-value of 3.4e-06, which phred-scaled is 54.69
     Float excess_het_threshold = 54.69
 
-    Float indel_sensitivity_threshold
-    Float snp_sensitivity_threshold
+    #inputs for threshold filtering
+    String truth_sample_name = "NA12878"
+    File gtr_vcf
+    File gtr_vcf_index
+    File gtr_highconf_intervals
+    String sample_name_gtr = "HG001"
+    String flow_gatk_docker
+    File ref_fasta
+    File ref_fasta_index
+    File ref_dict
+    File ref_fasta_sdf
+    File runs_file
+    Array[File] annotations_intervals
+
     String snp_annotations
     String indel_annotations
 
@@ -144,8 +157,6 @@ workflow UltimaGenomicsJointGenotyping {
       vcf_index = CalculateAverageAnnotations.output_vcf_index,
       sites_only_vcf = SitesOnlyGatherVcf.output_vcf,
       sites_only_vcf_index = SitesOnlyGatherVcf.output_vcf_index,
-      indel_sensitivity_threshold = indel_sensitivity_threshold,
-      snp_sensitivity_threshold = snp_sensitivity_threshold,
       snp_annotations = snp_annotations,
       indel_annotations = indel_annotations,
       basename = callset_name
@@ -177,10 +188,33 @@ workflow UltimaGenomicsJointGenotyping {
         disk_size = huge_disk
     }
 
-    call Tasks.CollectVariantCallingMetrics as CollectMetricsOnFullVcf {
+    #TODO: make this work for large callsets too
+    call FilteringThreshold.ExtractOptimizeSingleSample as FilteredGatheredVCF {
       input:
         input_vcf = FinalGatherVcf.output_vcf,
         input_vcf_index = FinalGatherVcf.output_vcf_index,
+        base_file_name = callset_name,
+        sample_name_calls = truth_sample_name,
+        gtr_vcf = gtr_vcf,
+        gtr_vcf_index = gtr_vcf_index,
+        gtr_highconf_intervals = gtr_highconf_intervals,
+        sample_name_gtr = sample_name_gtr,
+        gatk_docker = flow_gatk_docker,
+        #TODO: update these inputs
+        jukebox_vc_docker = "gcr.io/terra-project-249020/jukebox_vc:test_7afb9e",
+        flow_order = "TGCA",
+        ref_fasta = ref_fasta,
+        ref_dict = ref_dict,
+        ref_fasta_sdf = "gs://concordance/hg38/reference_sdf.tar",
+        runs_file = "gs://concordance/hg38/runs.conservative.bed",
+        annotation_intervals = ["gs://concordance/hg38/LCR-hs38.bed", "gs://concordance/hg38/mappability.0.bed", "gs://concordance/hg38/exome.twist.bed"],
+        score_key = "SCORE"
+   }
+
+    call Tasks.CollectVariantCallingMetrics as CollectMetricsOnFullVcf {
+      input:
+        input_vcf = FilteredGatheredVCF.output_vcf,
+        input_vcf_index = FilteredGatheredVCF.output_vcf_index,
         metrics_filename_prefix = callset_name,
         dbsnp_vcf = dbsnp_vcf,
         dbsnp_vcf_index = dbsnp_vcf_index,
@@ -281,8 +315,8 @@ workflow UltimaGenomicsJointGenotyping {
   File output_summary_metrics_file = select_first([CollectMetricsOnFullVcf.summary_metrics_file, GatherVariantCallingMetrics.summary_metrics_file])
 
   # Get the VCFs from either code path
-  Array[File?] output_vcf_files = if defined(FinalGatherVcf.output_vcf) then [FinalGatherVcf.output_vcf] else UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf
-  Array[File?] output_vcf_index_files = if defined(FinalGatherVcf.output_vcf_index) then [FinalGatherVcf.output_vcf_index] else UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf_index
+  Array[File?] output_vcf_files = if defined(FilteredGatheredVCF.output_vcf) then [FilteredGatheredVCF.output_vcf] else UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf
+  Array[File?] output_vcf_index_files = if defined(FilteredGatheredVCF.output_vcf_index) then [FilteredGatheredVCF.output_vcf_index] else UltimaGenomicsGermlineJointFiltering.variant_filtered_vcf_index
 
   output {
     # Metrics from either the small or large callset
