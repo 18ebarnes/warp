@@ -239,7 +239,7 @@ task ScoreVariantAnnotations {
 
 		zgrep -v '#' ~{vcf} > empty.txt
 
-		if [-s empty.txt]; then
+		if [ -s empty.txt ]; then
 			ln -s ~{sep=" . && ln -s " model_files} .
 
 			conda install -y --name gatk dill
