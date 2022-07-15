@@ -235,7 +235,6 @@ task ScoreVariantAnnotations {
 	Int disk_size = ceil(size(vcf, "GB") *2 + 50)
 
 	command {
-		#zgrep rc is 1 if output is empty
 		zgrep -v '#' ~{vcf} > empty.txt
 		set -e
 
