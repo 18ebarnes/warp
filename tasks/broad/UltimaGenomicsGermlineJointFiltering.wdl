@@ -240,7 +240,6 @@ task ScoreVariantAnnotations {
 		zgrep -v '#' ~{vcf} > empty.txt
 
 		if [-s empty.txt]; then
-
 			ln -s ~{sep=" . && ln -s " model_files} .
 
 			conda install -y --name gatk dill
@@ -258,8 +257,8 @@ task ScoreVariantAnnotations {
 				-mode ~{mode} \
 				--resource:extracted,extracted=true ~{extracted_training_vcf} \
 				~{resources}
-
 		else
+			echo "Input VCF was empty so we'll return empty hdf5s and the same VCF that was input"
 			touch ~{basename}.~{mode}.scores.hdf5
 			touch ~{basename}.~{mode}.annot.hdf5
 			ln -s ~{vcf} ~{basename}.~{mode}.vcf.gz
