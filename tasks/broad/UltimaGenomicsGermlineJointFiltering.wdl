@@ -235,9 +235,9 @@ task ScoreVariantAnnotations {
 	Int disk_size = ceil(size(vcf, "GB") *2 + 50)
 
 	command {
-		set -e
-
+		#zgrep rc is 1 if output is empty
 		zgrep -v '#' ~{vcf} > empty.txt
+		set -e
 
 		if [ -s empty.txt ]; then
 			ln -s ~{sep=" . && ln -s " model_files} .
