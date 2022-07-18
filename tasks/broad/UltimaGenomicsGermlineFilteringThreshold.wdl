@@ -15,6 +15,7 @@ workflow ExtractOptimizeSingleSample {
         String jukebox_vc_docker
         String flow_order
         File ref_fasta
+        File ref_fasta_index
         File ref_dict
         File ref_fasta_sdf
         File runs_file
@@ -34,10 +35,21 @@ workflow ExtractOptimizeSingleSample {
 
     }
 
+    call AnnotateSampleVCF {
+        input:
+            input_vcf = ExtractSample.output_vcf_file,
+            input_vcf_index = ExtractSample.output_vcf_index,
+            docker = gatk_docker,
+            ref_fasta = ref_fasta,
+            ref_fasta_index = ref_fasta_index,
+            ref_dict = ref_dict,
+            output_basename = base_file_name
+    }
+
     call FilterSampleVCF{
         input:
             monitoring_script = monitoring_script,
-            input_vcf = ExtractSample.output_vcf_file,
+            input_vcf = AnnotateSampleVCF.output_vcf_file,
             no_address=true,
             docker=jukebox_vc_docker,
     }
@@ -366,8 +378,40 @@ task HardThresholdVCF {
     File output_vcf_index = "~{output_basename}.vcf.gz.tbi"    
     File monitoring_log = "monitoring.log"
   }
+}
 
+task AnnotateSampleVCF {
+    input {
+        File input_vcf
+        File input_vcf_index
+        String output_basename
+        Int disk_size = ceil(size(input_vcf, "GB") * 2) + 50
+        String docker
+        File ref_fasta
+        File ref_fasta_index
+        File ref_dict
+        String flow_order = "TGCA"
+    }
 
+    command <<<
+        gatk --java-options "-Xmx15g" \
+            VariantAnnotator \
+            -O ~{output_basename}.vcf.gz \
+            -V ~{input_vcf} \
+            -R ~{ref_fasta} \
+            -G StandardFlowBasedAnnotation \
+            --flow-order-for-annotations ~{flow_order}
+    >>>
+    runtime {
+        memory: "16 GB"
+        disks: "local-disk " + disk_size + " HDD"
+        docker: docker
+    }
+
+    output {
+        File output_vcf = "~{output_basename}.vcf.gz"
+        File output_vcf_index = "~{output_basename}.vcf.gz.tbi"
+    }
 }
 
 

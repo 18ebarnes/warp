@@ -204,6 +204,7 @@ workflow UltimaGenomicsJointGenotyping {
         jukebox_vc_docker = "us.gcr.io/broad-dsde-methods/broad-gatk-snapshots:UG_vc_cfa2f0",
         flow_order = "TGCA",
         ref_fasta = ref_fasta,
+        ref_fasta_index = ref_fasta_index,
         ref_dict = ref_dict,
         ref_fasta_sdf = "gs://concordance/hg38/reference_sdf.tar",
         runs_file = "gs://concordance/hg38/runs.conservative.bed",
