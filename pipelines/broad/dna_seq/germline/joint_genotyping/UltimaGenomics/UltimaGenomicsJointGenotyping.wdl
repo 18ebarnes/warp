@@ -189,7 +189,7 @@ workflow UltimaGenomicsJointGenotyping {
     }
 
     #TODO: make this work for large callsets too
-    call FilteringThreshold.ExtractOptimizeSingleSample as FilteredGatheredVCF {
+    call FilteringThreshold.ExtractOptimizeSingleSample as FindFilteringThresholdAndFilter {
       input:
         input_vcf = FinalGatherVcf.output_vcf,
         input_vcf_index = FinalGatherVcf.output_vcf_index,
@@ -213,8 +213,8 @@ workflow UltimaGenomicsJointGenotyping {
 
     call Tasks.CollectVariantCallingMetrics as CollectMetricsOnFullVcf {
       input:
-        input_vcf = FilteredGatheredVCF.output_vcf,
-        input_vcf_index = FilteredGatheredVCF.output_vcf_index,
+        input_vcf = FindFilteringThresholdAndFilter.output_vcf,
+        input_vcf_index = FindFilteringThresholdAndFilter.output_vcf_index,
         metrics_filename_prefix = callset_name,
         dbsnp_vcf = dbsnp_vcf,
         dbsnp_vcf_index = dbsnp_vcf_index,
@@ -315,8 +315,8 @@ workflow UltimaGenomicsJointGenotyping {
   File output_summary_metrics_file = select_first([CollectMetricsOnFullVcf.summary_metrics_file, GatherVariantCallingMetrics.summary_metrics_file])
 
   # Get the VCFs from either code path
-  Array[File?] output_vcf_files = if defined(FilteredGatheredVCF.output_vcf) then [FilteredGatheredVCF.output_vcf] else UltimaGenomicsGermlineJointFiltering.variant_scored_vcf
-  Array[File?] output_vcf_index_files = if defined(FilteredGatheredVCF.output_vcf_index) then [FilteredGatheredVCF.output_vcf_index] else UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index
+  Array[File?] output_vcf_files = if defined(FindFilteringThresholdAndFilter.output_vcf) then [FindFilteringThresholdAndFilter.output_vcf] else UltimaGenomicsGermlineJointFiltering.variant_scored_vcf
+  Array[File?] output_vcf_index_files = if defined(FindFilteringThresholdAndFilter.output_vcf_index) then [FindFilteringThresholdAndFilter.output_vcf_index] else UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index
 
   output {
     # Metrics from either the small or large callset
