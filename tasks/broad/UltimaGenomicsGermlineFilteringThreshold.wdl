@@ -409,7 +409,7 @@ task AnnotateSampleVCF {
     }
 
     output {
-        File output_vcf = "~{output_basename}.vcf.gz"
+        File output_vcf_file = "~{output_basename}.vcf.gz"
         File output_vcf_index = "~{output_basename}.vcf.gz.tbi"
     }
 }
