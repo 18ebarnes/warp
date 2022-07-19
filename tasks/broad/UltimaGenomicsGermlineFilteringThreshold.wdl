@@ -319,7 +319,7 @@ task EvaluateResults {
 
     >>>
   runtime {
-    memory: "20 GB"
+    memory: "32 GB"
     disks: "local-disk " + disk_size + " HDD"
     docker: docker
     noAddress: no_address
