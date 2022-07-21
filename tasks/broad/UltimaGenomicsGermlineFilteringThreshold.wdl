@@ -23,33 +23,32 @@ workflow ExtractOptimizeSingleSample {
         String score_key
     }
 
-    
-    call ExtractSample { 
-        input: 
-            sample_name = sample_name_calls,
-            monitoring_script = monitoring_script,
-            input_vcf=input_vcf,
-            input_vcf_index = input_vcf_index,
-            docker=jukebox_vc_docker,
-            no_address=true,
-
-    }
-
     call AnnotateSampleVCF {
         input:
-            input_vcf = ExtractSample.output_vcf_file,
-            input_vcf_index = ExtractSample.output_vcf_index,
+            input_vcf = input_vcf,
+            input_vcf_index = input_vcf_index,
             docker = gatk_docker,
             ref_fasta = ref_fasta,
             ref_fasta_index = ref_fasta_index,
             ref_dict = ref_dict,
             output_basename = base_file_name
     }
+    
+    call ExtractSample { 
+        input: 
+            sample_name = sample_name_calls,
+            monitoring_script = monitoring_script,
+            input_vcf = AnnotateSampleVCF.output_vcf_file,
+            input_vcf_index = AnnotateSampleVCF.output_vcf_index,
+            docker=jukebox_vc_docker,
+            no_address=true,
+
+    }
 
     call FilterSampleVCF{
         input:
             monitoring_script = monitoring_script,
-            input_vcf = AnnotateSampleVCF.output_vcf_file,
+            input_vcf = ExtractSample.output_vcf_file,
             no_address=true,
             docker=jukebox_vc_docker,
     }
