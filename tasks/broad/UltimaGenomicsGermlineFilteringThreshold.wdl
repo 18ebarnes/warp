@@ -1,5 +1,7 @@
 version 1.0
 
+    #TODO: add documentation
+    #TODO: have the input vcf be an array and scatter the annotation and extraction, then combine the extracted vcf
 workflow ExtractOptimizeSingleSample { 
     input {
         String monitoring_script="gs://broad-dsde-methods-monitoring/cromwell_monitoring_script.sh"
@@ -101,8 +103,8 @@ workflow ExtractOptimizeSingleSample {
     call HardThresholdVCF { 
         input: 
           thresholds = EvaluateResults.thresholds_report,
-          input_vcf = input_vcf,
-          input_vcf_index = input_vcf_index,
+          input_vcf = AnnotateSampleVCF.output_vcf_file,
+          input_vcf_index = AnnotateSampleVCF.output_vcf_index,
           score_key = score_key,
           output_basename = base_file_name,
           disk_size = 3*ceil(size(input_vcf, "GB")) + 14,
