@@ -114,8 +114,8 @@ workflow ExtractOptimizeSingleSample {
         call HardThresholdVCF {
             input:
               thresholds = EvaluateResults.thresholds_report,
-              input_vcf = AnnotateSampleVCF.output_vcf_file,
-              input_vcf_index = AnnotateSampleVCF.output_vcf_index,
+              input_vcf = AnnotateSampleVCF.output_vcf_file[idx],
+              input_vcf_index = AnnotateSampleVCF.output_vcf_index[idx],
               score_key = score_key,
               output_basename = base_file_name,
               disk_size = 3*ceil(size(input_vcf, "GB")) + 14,
