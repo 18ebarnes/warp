@@ -50,7 +50,7 @@ workflow ExtractOptimizeSingleSample {
         }
     }
 
-    call Tasks.GatherVCF {
+    call Tasks.GatherVcfs {
         input:
             input_vcfs = ExtractSample.output_vcf_file,
             output_vcf_name = base_file_name + ".extracted.vcf.gz",
