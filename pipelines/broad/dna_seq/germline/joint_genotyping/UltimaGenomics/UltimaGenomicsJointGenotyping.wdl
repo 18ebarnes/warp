@@ -162,13 +162,36 @@ workflow UltimaGenomicsJointGenotyping {
       basename = callset_name
   }
 
+  call FilteringThreshold.ExtractOptimizeSingleSample as FindFilteringThresholdAndFilter {
+    input:
+      input_vcf = UltimaGenomicsGermlineJointFiltering.output_vcf,
+      input_vcf_index = UltimaGenomicsGermlineJointFiltering.output_vcf_index,
+      base_file_name = callset_name,
+      sample_name_calls = truth_sample_name,
+      gtr_vcf = gtr_vcf,
+      gtr_vcf_index = gtr_vcf_index,
+      gtr_highconf_intervals = gtr_highconf_intervals,
+      sample_name_gtr = sample_name_gtr,
+      gatk_docker = flow_gatk_docker,
+      #TODO: update these inputs
+      jukebox_vc_docker = "gcr.io/terra-project-249020/jukebox_vc:test_joint_calling_f9d8e2",
+      flow_order = "TGCA",
+      ref_fasta = ref_fasta,
+      ref_fasta_index = ref_fasta_index,
+      ref_dict = ref_dict,
+      ref_fasta_sdf = "gs://concordance/hg38/reference_sdf.tar",
+      runs_file = "gs://concordance/hg38/runs.conservative.bed",
+      annotation_intervals = ["gs://concordance/hg38/LCR-hs38.bed", "gs://concordance/hg38/mappability.0.bed", "gs://concordance/hg38/exome.twist.bed"],
+      score_key = "SCORE"
+  }
+
   scatter (idx in range(length(UltimaGenomicsGermlineJointFiltering.variant_scored_vcf))) {
     # For large callsets we need to collect metrics from the shards and gather them later.
     if (!is_small_callset) {
       call Tasks.CollectVariantCallingMetrics as CollectMetricsSharded {
         input:
-          input_vcf = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf[idx],
-          input_vcf_index = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index[idx],
+          input_vcf = FindFilteringThresholdAndFilter.variant_scored_vcf[idx],
+          input_vcf_index = FindFilteringThresholdAndFilter.variant_scored_vcf_index[idx],
           metrics_filename_prefix = callset_name + "." + idx,
           dbsnp_vcf = dbsnp_vcf,
           dbsnp_vcf_index = dbsnp_vcf_index,
@@ -183,34 +206,10 @@ workflow UltimaGenomicsJointGenotyping {
   if (is_small_callset) {
     call Tasks.GatherVcfs as FinalGatherVcf {
       input:
-        input_vcfs = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf,
+        input_vcfs = FindFilteringThresholdAndFilter.variant_scored_vcf,
         output_vcf_name = callset_name + ".vcf.gz",
         disk_size = huge_disk
     }
-
-    #TODO: make this work for large callsets too
-    call FilteringThreshold.ExtractOptimizeSingleSample as FindFilteringThresholdAndFilter {
-      input:
-        input_vcf = FinalGatherVcf.output_vcf,
-        input_vcf_index = FinalGatherVcf.output_vcf_index,
-        base_file_name = callset_name,
-        sample_name_calls = truth_sample_name,
-        gtr_vcf = gtr_vcf,
-        gtr_vcf_index = gtr_vcf_index,
-        gtr_highconf_intervals = gtr_highconf_intervals,
-        sample_name_gtr = sample_name_gtr,
-        gatk_docker = flow_gatk_docker,
-        #TODO: update these inputs
-        jukebox_vc_docker = "gcr.io/terra-project-249020/jukebox_vc:test_joint_calling_f9d8e2",
-        flow_order = "TGCA",
-        ref_fasta = ref_fasta,
-        ref_fasta_index = ref_fasta_index,
-        ref_dict = ref_dict,
-        ref_fasta_sdf = "gs://concordance/hg38/reference_sdf.tar",
-        runs_file = "gs://concordance/hg38/runs.conservative.bed",
-        annotation_intervals = ["gs://concordance/hg38/LCR-hs38.bed", "gs://concordance/hg38/mappability.0.bed", "gs://concordance/hg38/exome.twist.bed"],
-        score_key = "SCORE"
-   }
 
     call Tasks.CollectVariantCallingMetrics as CollectMetricsOnFullVcf {
       input:
@@ -316,8 +315,8 @@ workflow UltimaGenomicsJointGenotyping {
   File output_summary_metrics_file = select_first([CollectMetricsOnFullVcf.summary_metrics_file, GatherVariantCallingMetrics.summary_metrics_file])
 
   # Get the VCFs from either code path
-  Array[File?] output_vcf_files = if defined(FindFilteringThresholdAndFilter.output_vcf) then [FindFilteringThresholdAndFilter.output_vcf] else UltimaGenomicsGermlineJointFiltering.variant_scored_vcf
-  Array[File?] output_vcf_index_files = if defined(FindFilteringThresholdAndFilter.output_vcf_index) then [FindFilteringThresholdAndFilter.output_vcf_index] else UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index
+  Array[File?] output_vcf_files = if defined(FinalGatherVcf.output_vcf) then [FinalGatherVcf.output_vcf] else FindFilteringThresholdAndFilter.ouput_vcf_file
+  Array[File?] output_vcf_index_files = if defined(FinalGatherVcf.output_vcf_index) then [FinalGatherVcf.output_vcf_index] else FindFilteringThresholdAndFilter.ouptut_vcf_index
 
   output {
     # Metrics from either the small or large callset

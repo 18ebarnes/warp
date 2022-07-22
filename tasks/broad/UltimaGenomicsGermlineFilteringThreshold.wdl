@@ -1,12 +1,13 @@
 version 1.0
 
-    #TODO: add documentation
-    #TODO: have the input vcf be an array and scatter the annotation and extraction, then combine the extracted vcf
+import "../../tasks/broad/JointGenotypingTasks.wdl" as Tasks
+
+#TODO: add documentation
 workflow ExtractOptimizeSingleSample { 
     input {
         String monitoring_script="gs://broad-dsde-methods-monitoring/cromwell_monitoring_script.sh"
-        File input_vcf
-        File input_vcf_index
+        Array[File] input_vcf
+        Array[File] input_vcf_index
         String base_file_name
         String sample_name_calls
         File gtr_vcf
@@ -23,34 +24,43 @@ workflow ExtractOptimizeSingleSample {
         File runs_file
         Array[File] annotation_intervals
         String score_key
+        Int medium_disk
     }
 
-    call AnnotateSampleVCF {
+    scatter (idx in range(0,length(input_vcf))) {
+        call AnnotateSampleVCF {
+            input:
+                input_vcf = input_vcf[idx],
+                input_vcf_index = input_vcf_index[idx],
+                docker = gatk_docker,
+                ref_fasta = ref_fasta,
+                ref_fasta_index = ref_fasta_index,
+                ref_dict = ref_dict,
+                output_basename = base_file_name
+        }
+
+        call ExtractSample {
+            input:
+                sample_name = sample_name_calls,
+                monitoring_script = monitoring_script,
+                input_vcf = AnnotateSampleVCF.output_vcf_file,
+                input_vcf_index = AnnotateSampleVCF.output_vcf_index,
+                docker=jukebox_vc_docker,
+                no_address=true
+        }
+    }
+
+    call Tasks.GatherVCF {
         input:
-            input_vcf = input_vcf,
-            input_vcf_index = input_vcf_index,
-            docker = gatk_docker,
-            ref_fasta = ref_fasta,
-            ref_fasta_index = ref_fasta_index,
-            ref_dict = ref_dict,
-            output_basename = base_file_name
-    }
-    
-    call ExtractSample { 
-        input: 
-            sample_name = sample_name_calls,
-            monitoring_script = monitoring_script,
-            input_vcf = AnnotateSampleVCF.output_vcf_file,
-            input_vcf_index = AnnotateSampleVCF.output_vcf_index,
-            docker=jukebox_vc_docker,
-            no_address=true,
-
+            input_vcfs = ExtractSample.output_vcf_file,
+            output_vcf_name = base_file_name + ".extracted.vcf.gz",
+            disk_size = medium_disk
     }
 
     call FilterSampleVCF{
         input:
             monitoring_script = monitoring_script,
-            input_vcf = ExtractSample.output_vcf_file,
+            input_vcf = GatherVCF.output_vcf,
             no_address=true,
             docker=jukebox_vc_docker,
     }
@@ -100,22 +110,24 @@ workflow ExtractOptimizeSingleSample {
           no_address = true
     }
 
-    call HardThresholdVCF { 
-        input: 
-          thresholds = EvaluateResults.thresholds_report,
-          input_vcf = AnnotateSampleVCF.output_vcf_file,
-          input_vcf_index = AnnotateSampleVCF.output_vcf_index,
-          score_key = score_key,
-          output_basename = base_file_name,
-          disk_size = 3*ceil(size(input_vcf, "GB")) + 14,
-          docker = gatk_docker,
-          monitoring_script = monitoring_script, 
-          no_address = false
+    scatter (idx in range(0,length(input_vcf))) {
+        call HardThresholdVCF {
+            input:
+              thresholds = EvaluateResults.thresholds_report,
+              input_vcf = AnnotateSampleVCF.output_vcf_file,
+              input_vcf_index = AnnotateSampleVCF.output_vcf_index,
+              score_key = score_key,
+              output_basename = base_file_name,
+              disk_size = 3*ceil(size(input_vcf, "GB")) + 14,
+              docker = gatk_docker,
+              monitoring_script = monitoring_script,
+              no_address = false
+        }
     }
 
     output {
-        File output_vcf = HardThresholdVCF.output_vcf
-        File output_vcf_index = HardThresholdVCF.output_vcf_index
+        Array[File] output_vcf = HardThresholdVCF.output_vcf
+        Array[File] output_vcf_index = HardThresholdVCF.output_vcf_index
         File eval_report_h5 = EvaluateResults.eval_report_h5
         File thresholds_report = EvaluateResults.thresholds_report
     }
