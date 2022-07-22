@@ -164,8 +164,8 @@ workflow UltimaGenomicsJointGenotyping {
 
   call FilteringThreshold.ExtractOptimizeSingleSample as FindFilteringThresholdAndFilter {
     input:
-      input_vcf = UltimaGenomicsGermlineJointFiltering.output_vcf,
-      input_vcf_index = UltimaGenomicsGermlineJointFiltering.output_vcf_index,
+      input_vcf = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf,
+      input_vcf_index = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index,
       base_file_name = callset_name,
       sample_name_calls = truth_sample_name,
       gtr_vcf = gtr_vcf,
