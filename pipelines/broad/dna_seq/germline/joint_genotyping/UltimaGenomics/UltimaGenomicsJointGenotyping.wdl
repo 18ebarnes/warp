@@ -182,7 +182,8 @@ workflow UltimaGenomicsJointGenotyping {
       ref_fasta_sdf = "gs://concordance/hg38/reference_sdf.tar",
       runs_file = "gs://concordance/hg38/runs.conservative.bed",
       annotation_intervals = ["gs://concordance/hg38/LCR-hs38.bed", "gs://concordance/hg38/mappability.0.bed", "gs://concordance/hg38/exome.twist.bed"],
-      score_key = "SCORE"
+      score_key = "SCORE",
+      medium_disk = medium_disk
   }
 
   scatter (idx in range(length(UltimaGenomicsGermlineJointFiltering.variant_scored_vcf))) {
