@@ -60,7 +60,7 @@ workflow ExtractOptimizeSingleSample {
     call FilterSampleVCF{
         input:
             monitoring_script = monitoring_script,
-            input_vcf = GatherVCF.output_vcf,
+            input_vcf = GatherVcfs.output_vcf,
             no_address=true,
             docker=jukebox_vc_docker,
     }
