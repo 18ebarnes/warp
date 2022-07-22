@@ -27,7 +27,7 @@ workflow ExtractOptimizeSingleSample {
         Int medium_disk
     }
 
-    scatter (idx in range(0,length(input_vcf))) {
+    scatter (idx in range(length(input_vcf))) {
         call AnnotateSampleVCF {
             input:
                 input_vcf = input_vcf[idx],
@@ -110,7 +110,7 @@ workflow ExtractOptimizeSingleSample {
           no_address = true
     }
 
-    scatter (idx in range(0,length(input_vcf))) {
+    scatter (idx in range(length(input_vcf))) {
         call HardThresholdVCF {
             input:
               thresholds = EvaluateResults.thresholds_report,
