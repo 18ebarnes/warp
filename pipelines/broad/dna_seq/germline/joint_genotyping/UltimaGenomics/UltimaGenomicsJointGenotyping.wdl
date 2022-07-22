@@ -315,17 +315,16 @@ workflow UltimaGenomicsJointGenotyping {
   File output_summary_metrics_file = select_first([CollectMetricsOnFullVcf.summary_metrics_file, GatherVariantCallingMetrics.summary_metrics_file])
 
   # Get the VCFs from either code path
-  Array[File?] output_vcf_files = if defined(FinalGatherVcf.output_vcf) then [FinalGatherVcf.output_vcf] else FindFilteringThresholdAndFilter.ouput_vcf_file
-  Array[File?] output_vcf_index_files = if defined(FinalGatherVcf.output_vcf_index) then [FinalGatherVcf.output_vcf_index] else FindFilteringThresholdAndFilter.ouptut_vcf_index
+  Array[File?] output_vcf_files = if defined(FinalGatherVcf.output_vcf) then [FinalGatherVcf.output_vcf] else FindFilteringThresholdAndFilter.ouput_vcf
+  Array[File?] output_vcf_index_files = if defined(FinalGatherVcf.output_vcf_index) then [FinalGatherVcf.output_vcf_index] else FindFilteringThresholdAndFilter.output_vcf_index
 
   output {
     # Metrics from either the small or large callset
     File detail_metrics_file = output_detail_metrics_file
     File summary_metrics_file = output_summary_metrics_file
 
-    # Outputs from the small callset path through the wdl.
-    Array[File] output_vcfs = select_all(UltimaGenomicsGermlineJointFiltering.variant_scored_vcf)
-    Array[File] output_vcf_indices = select_all(UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index)
+    Array[File] output_vcfs = select_all(output_vcf_files)
+    Array[File] output_vcf_indices = select_all(output_vcf_index_files)
 
     # Output the interval list generated/used by this run workflow.
     Array[File] output_intervals = SplitIntervalList.output_intervals
