@@ -118,7 +118,7 @@ workflow ExtractOptimizeSingleSample {
               input_vcf_index = AnnotateSampleVCF.output_vcf_index[idx],
               score_key = score_key,
               output_basename = base_file_name,
-              disk_size = 3*ceil(size(input_vcf, "GB")) + 14,
+              disk_size = 3*ceil(size(AnnotateSampleVCF.output_vcf_file[idx], "GB")) + 14,
               docker = gatk_docker,
               monitoring_script = monitoring_script,
               no_address = false
