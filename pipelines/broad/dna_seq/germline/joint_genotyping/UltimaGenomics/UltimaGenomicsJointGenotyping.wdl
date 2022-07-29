@@ -174,7 +174,7 @@ workflow UltimaGenomicsJointGenotyping {
       sample_name_gtr = sample_name_gtr,
       gatk_docker = flow_gatk_docker,
       #TODO: update these inputs
-      jukebox_vc_docker = "gcr.io/terra-project-249020/jukebox_vc:test_joint_calling_f9d8e2",
+      jukebox_vc_docker = "gcr.io/terra-project-249020/jukebox_vc:test_jc_optimize_3d7509",
       flow_order = "TGCA",
       ref_fasta = ref_fasta,
       ref_fasta_index = ref_fasta_index,

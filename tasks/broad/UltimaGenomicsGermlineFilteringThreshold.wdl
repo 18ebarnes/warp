@@ -107,6 +107,7 @@ workflow ExtractOptimizeSingleSample {
           disk_size = 10,
           docker = jukebox_vc_docker,
           monitoring_script = monitoring_script,
+          score_key = score_key,
           no_address = true
     }
 
@@ -317,6 +318,7 @@ task EvaluateResults {
     String input_vcf_name
     Int disk_size
     String docker
+    String score_key
     Boolean no_address
   }
   command <<<
@@ -328,7 +330,8 @@ task EvaluateResults {
     evaluate_concordance.py \
             --input_file ~{h5_input} \
             --output_prefix ~{input_vcf_name}.report \
-            --use_for_group_testing variant_type
+            --use_for_group_testing variant_type \
+            --score_key ~{score_key}
 
     >>>
   runtime {
