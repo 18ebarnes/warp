@@ -53,6 +53,8 @@ workflow UltimaGenomicsJointGenotyping {
     String snp_annotations
     String indel_annotations
 
+    Boolean use_allele_specific_annotations = true
+
     Int? top_level_scatter_count
     Boolean? gather_vcfs
     Float unbounded_scatter_count_scale_factor = 0.15
@@ -159,6 +161,7 @@ workflow UltimaGenomicsJointGenotyping {
       sites_only_vcf_index = SitesOnlyGatherVcf.output_vcf_index,
       snp_annotations = snp_annotations,
       indel_annotations = indel_annotations,
+      use_allele_specific_annotations = use_allele_specific_annotations,
       basename = callset_name
   }
 
