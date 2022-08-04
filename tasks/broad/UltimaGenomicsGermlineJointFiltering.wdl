@@ -267,16 +267,14 @@ task ScoreVariantAnnotations {
 				--resource:extracted,extracted=true ~{extracted_training_vcf} \
 				~{resources}
 		else
-			echo "Input VCF was empty so we'll return empty hdf5s and the same VCF that was input"
-			touch ~{basename}.~{mode}.scores.hdf5
-			touch ~{basename}.~{mode}.annot.hdf5
+			echo "Input VCF was empty so we'll return the same VCF that was input"
 			ln -s ~{vcf} ~{basename}.~{mode}.vcf.gz
 			ln -s ~{vcf_index} ~{basename}.~{mode}.vcf.gz.tbi
 		fi
 	}
 	output {
-		File scores = "~{basename}.~{mode}.scores.hdf5"
-		File annots = "~{basename}.~{mode}.annot.hdf5"
+		File? scores = "~{basename}.~{mode}.scores.hdf5"
+		File? annots = "~{basename}.~{mode}.annot.hdf5"
 		File output_vcf = "~{basename}.~{mode}.vcf.gz"
 		File output_vcf_index = "~{basename}.~{mode}.vcf.gz.tbi"
 	}

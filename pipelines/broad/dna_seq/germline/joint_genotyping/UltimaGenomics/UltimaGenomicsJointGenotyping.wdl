@@ -53,7 +53,7 @@ workflow UltimaGenomicsJointGenotyping {
     String snp_annotations
     String indel_annotations
 
-    Boolean use_allele_specific_annotations = true
+    Boolean use_allele_specific_annotations
 
     Int? top_level_scatter_count
     Boolean? gather_vcfs
