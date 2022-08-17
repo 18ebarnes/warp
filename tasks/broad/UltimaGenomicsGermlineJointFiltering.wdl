@@ -15,9 +15,10 @@ workflow UltimaGenomicsGermlineJointFiltering {
 		File sites_only_vcf_index
 		String basename
 
-		#TODO delete these inputs
-		File python_script
-		File hyperparameters_json
+		String model_backend
+		File? training_python_script
+		File? scoring_python_script
+		File? hyperparameters_json
 
 		String gatk_docker
 		File? extract_interval_list
@@ -29,8 +30,8 @@ workflow UltimaGenomicsGermlineJointFiltering {
 
 		Boolean use_allele_specific_annotations
 
-		String snp_training_resource_command_line = "--resource:hapmap,training=true,calibration=true gs://gcp-public-data--broad-references/hg38/v0/hapmap_3.3.hg38.vcf.gz --resource:omni,training=true,calibration=true gs://gcp-public-data--broad-references/hg38/v0/1000G_omni2.5.hg38.vcf.gz --resource:1000G,training=true,calibration=false gs://gcp-public-data--broad-references/hg38/v0/1000G_phase1.snps.high_confidence.hg38.vcf.gz"
-		String indel_training_resource_command_line = "--resource:mills,training=true,calibration=true gs://gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz"
+		String snp_resource_args = "--resource:hapmap,training=true,calibration=true gs://gcp-public-data--broad-references/hg38/v0/hapmap_3.3.hg38.vcf.gz --resource:omni,training=true,calibration=true gs://gcp-public-data--broad-references/hg38/v0/1000G_omni2.5.hg38.vcf.gz --resource:1000G,training=true,calibration=false gs://gcp-public-data--broad-references/hg38/v0/1000G_phase1.snps.high_confidence.hg38.vcf.gz"
+		String indel_resource_args = "--resource:mills,training=true,calibration=true gs://gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz"
 	}
 
 	parameter_meta {
@@ -45,7 +46,7 @@ workflow UltimaGenomicsGermlineJointFiltering {
 			input_vcf_index = sites_only_vcf_index,
 			mode = "SNP",
 			annotations = snp_annotations,
-			resources = snp_training_resource_command_line,
+			resource_args = snp_resource_args,
 			basename = basename,
 			interval_list = extract_interval_list,
 			use_allele_specific_annotations = use_allele_specific_annotations,
@@ -59,7 +60,7 @@ workflow UltimaGenomicsGermlineJointFiltering {
 			input_vcf_index = sites_only_vcf_index,
 			mode = "INDEL",
 			annotations = indel_annotations,
-			resources = indel_training_resource_command_line,
+			resource_args = indel_resource_args,
 			basename = basename,
 			interval_list = extract_interval_list,
 			use_allele_specific_annotations = use_allele_specific_annotations,
@@ -72,7 +73,8 @@ workflow UltimaGenomicsGermlineJointFiltering {
 			annots = ExtractVariantAnnotationsSNPs.annots,
 			basename = basename,
 			mode = "snp",
-			python_script = python_script,
+			model_backend = model_backend,
+			python_script = training_python_script,
 			hyperparameters_json = hyperparameters_json,
 			gatk_override = gatk_override,
 			gatk_docker = gatk_docker
@@ -83,7 +85,8 @@ workflow UltimaGenomicsGermlineJointFiltering {
 			annots = ExtractVariantAnnotationsINDELs.annots,
 			basename = basename,
 			mode = "indel",
-			python_script = python_script,
+			model_backend = model_backend,
+			python_script = training_python_script,
 			hyperparameters_json = hyperparameters_json,
 			gatk_override = gatk_override,
 			gatk_docker = gatk_docker
@@ -96,13 +99,14 @@ workflow UltimaGenomicsGermlineJointFiltering {
 				vcf_index = vcf_index[idx],
 				basename = basename,
 				mode = "SNP",
-				scoring_python_script = python_script,
+				model_backend = model_backend,
+				python_script = scoring_python_script,
 				annotations = snp_annotations,
 				extracted_training_vcf = ExtractVariantAnnotationsSNPs.extracted_training_vcf,
 				extracted_training_vcf_index = ExtractVariantAnnotationsSNPs.extracted_training_vcf_index,
 				interval_list = score_interval_list,
 				model_files = TrainVariantAnnotationModelSNPs.outputs,
-				resources = "-resource:hapmap,training=false,calibration=true,prior=15 gs://gcp-public-data--broad-references/hg38/v0/hapmap_3.3.hg38.vcf.gz -resource:omni,training=false,calibration=true,prior=12 gs://gcp-public-data--broad-references/hg38/v0/1000G_omni2.5.hg38.vcf.gz",
+				resource_args = snp_resource_args,
 				use_allele_specific_annotations = use_allele_specific_annotations,
 				gatk_override = gatk_override,
 				gatk_docker = gatk_docker
@@ -114,13 +118,14 @@ workflow UltimaGenomicsGermlineJointFiltering {
 				vcf_index = ScoreVariantAnnotationsSNPs.output_vcf_index,
 				basename = basename,
 				mode = "INDEL",
-				scoring_python_script = python_script,
+				model_backend = model_backend,
+				python_script = scoring_python_script,
 				annotations = indel_annotations,
 				extracted_training_vcf = ExtractVariantAnnotationsINDELs.extracted_training_vcf,
 				extracted_training_vcf_index = ExtractVariantAnnotationsINDELs.extracted_training_vcf_index,
 				interval_list = score_interval_list,
 				model_files = TrainVariantAnnotationModelINDELs.outputs,
-				resources = "--resource:mills,training=false,calibration=true gs://gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+				resource_args = indel_resource_args,
 				use_allele_specific_annotations = use_allele_specific_annotations,
 				gatk_override = gatk_override,
 				gatk_docker = gatk_docker
@@ -144,7 +149,7 @@ task ExtractVariantAnnotations {
 		String basename
 		String mode
 		String annotations
-		String resources
+		String resource_args
 		File? interval_list
 		Boolean use_allele_specific_annotations
 
@@ -163,8 +168,8 @@ task ExtractVariantAnnotations {
 			~{annotations} \
 			~{if use_allele_specific_annotations then "--use-allele-specific-annotations" else ""} \
 			~{"-L " + interval_list} \
-			-mode ~{mode} \
-			~{resources}
+			--mode ~{mode} \
+			~{resource_args}
 	}
 	output {
 		File annots = "~{basename}.~{mode}.annot.hdf5"
@@ -186,8 +191,9 @@ task TrainVariantAnnotationModel {
 		File annots
 		String basename
 		String mode
-		File python_script
-		File hyperparameters_json
+		String model_backend
+		File? python_script
+		File? hyperparameters_json
 
 		Int memory_mb = 14000
 		Int command_mem = memory_mb - 1000
@@ -195,8 +201,6 @@ task TrainVariantAnnotationModel {
 	Int disk_size = ceil(size(annots, "GB") + 100)
 	command <<<
 		set -e
-
-		conda install -y --name gatk dill
 
 		export GATK_LOCAL_JAR=~{default="/root/gatk.jar" gatk_override}
 
@@ -206,9 +210,10 @@ task TrainVariantAnnotationModel {
 			TrainVariantAnnotationsModel \
 			--annotations-hdf5 ~{annots} \
 			-O ~{basename} \
-			--python-script ~{python_script} \
-			--hyperparameters-json ~{hyperparameters_json} \
-			-mode $mode
+			--model-backend ~{model_backend} \
+			~{"--python-script " + python_script} \
+			~{"--hyperparameters-json " + hyperparameters_json} \
+			--mode $mode
 
 	>>>
 	output {
@@ -229,9 +234,10 @@ task ScoreVariantAnnotations {
 		File vcf_index
 		String basename
 		String mode
-		File scoring_python_script
+		String model_backend
+		File? python_script
 		String annotations
-		String resources
+		String resource_args
 		File extracted_training_vcf
 		File extracted_training_vcf_index
 		File? interval_list
@@ -250,8 +256,6 @@ task ScoreVariantAnnotations {
 		if [ -s empty.txt ]; then
 			ln -s ~{sep=" . && ln -s " model_files} .
 
-			conda install -y --name gatk dill
-
 			export GATK_LOCAL_JAR=~{default="/root/gatk.jar" gatk_override}
 
 			gatk --java-options "-Xmx~{command_mem}m" \
@@ -259,13 +263,14 @@ task ScoreVariantAnnotations {
 				~{"-L " + interval_list} \
 				-V ~{vcf} \
 				-O ~{basename}.~{mode} \
-				--python-script ~{scoring_python_script} \
+				--model-backend ~{model_backend} \
+				~{"--python-script " + python_script} \
 				--model-prefix ~{basename} \
 				~{annotations} \
 				~{if use_allele_specific_annotations then "--use-allele-specific-annotations" else ""} \
 				-mode ~{mode} \
 				--resource:extracted,extracted=true ~{extracted_training_vcf} \
-				~{resources}
+				~{resource_args}
 		else
 			echo "Input VCF was empty so we'll return the same VCF that was input"
 			ln -s ~{vcf} ~{basename}.~{mode}.vcf.gz
