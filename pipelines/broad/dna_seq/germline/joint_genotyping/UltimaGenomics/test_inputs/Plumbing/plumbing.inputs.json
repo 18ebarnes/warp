@@ -19,5 +19,9 @@
 "UltimaGenomicsJointGenotyping.indel_sensitivity_threshold":97,
 "UltimaGenomicsJointGenotyping.snp_sensitivity_threshold":99.9,
 "UltimaGenomicsJointGenotyping.snp_annotations": "-A ReadPosRankSum -A FS -A SOR -A QD -A AVERAGE_TREE_SCORE -A AVERAGE_ASSEMBLED_HAPS -A AVERAGE_FILTERED_HAPS",
-"UltimaGenomicsJointGenotyping.indel_annotations": "-A MQRankSum -A ReadPosRankSum -A FS -A SOR -A QD -A AVERAGE_TREE_SCORE"
+"UltimaGenomicsJointGenotyping.indel_annotations": "-A MQRankSum -A ReadPosRankSum -A FS -A SOR -A QD -A AVERAGE_TREE_SCORE",
+"UltimaGenomicsJointGenotyping.flow_order": "TGCA",
+"UltimaGenomicsJointGenotyping.ref_fasta_sdf": "gs://broad-gotc-test-storage/tmp/jbx/reference_sdf.tar",
+"UltimaGenomicsJointGenotyping.runs_file": "gs://broad-gotc-test-storage/tmp/jbx/runs.conservative.bed",
+"UltimaGenomicsJointGenotyping.annotation_intervals": ["gs://broad-gotc-test-storage/tmp/jbx/LCR-hs38.bed", "gs://broad-gotc-test-storage/tmp/jbx/mappability.0.bed", "gs://broad-gotc-test-storage/tmp/jbx/exome.twist.bed"]
 }

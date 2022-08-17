@@ -2,10 +2,10 @@ version 1.0
 
 import "../../tasks/broad/JointGenotypingTasks.wdl" as Tasks
 
-#TODO: add documentation
+# Given a joint callset with a "score_key" INFO level annotation, this pipeline chooses a threshold that maximizes
+# the F1 score on a single sample in the callset using known truth data for that one sample.
 workflow ExtractOptimizeSingleSample { 
     input {
-        String monitoring_script="gs://broad-dsde-methods-monitoring/cromwell_monitoring_script.sh"
         Array[File] input_vcf
         Array[File] input_vcf_index
         String base_file_name
@@ -15,7 +15,6 @@ workflow ExtractOptimizeSingleSample {
         File gtr_highconf_intervals
         String sample_name_gtr
         String gatk_docker
-        String jukebox_vc_docker
         String flow_order
         File ref_fasta
         File ref_fasta_index
@@ -23,7 +22,7 @@ workflow ExtractOptimizeSingleSample {
         File ref_fasta_sdf
         File runs_file
         Array[File] annotation_intervals
-        String score_key
+        String score_key = "SCORE"
         Int medium_disk
     }
 
@@ -42,10 +41,8 @@ workflow ExtractOptimizeSingleSample {
         call ExtractSample {
             input:
                 sample_name = sample_name_calls,
-                monitoring_script = monitoring_script,
                 input_vcf = AnnotateSampleVCF.output_vcf_file,
                 input_vcf_index = AnnotateSampleVCF.output_vcf_index,
-                docker=jukebox_vc_docker,
                 no_address=true
         }
     }
@@ -59,17 +56,13 @@ workflow ExtractOptimizeSingleSample {
 
     call FilterSampleVCF{
         input:
-            monitoring_script = monitoring_script,
             input_vcf = GatherVcfs.output_vcf,
             no_address=true,
-            docker=jukebox_vc_docker,
     }
 
     call FilterSymbolicAlleles{
         input:
-            monitoring_script = monitoring_script,
             base_file_name = base_file_name,
-            docker=jukebox_vc_docker,
             input_vcf = FilterSampleVCF.output_vcf_file,
             input_vcf_index = FilterSampleVCF.output_vcf_index,
             no_address=true
@@ -93,8 +86,6 @@ workflow ExtractOptimizeSingleSample {
             annotation_intervals = annotation_intervals,
 
             disk_size = 2*(ceil(size(input_vcf, "GB") + size(gtr_vcf, "GB") + size(ref_fasta, "GB") + size(ref_fasta_sdf, "GB")))+10,
-            docker = jukebox_vc_docker,
-            monitoring_script = monitoring_script,
             no_address = true,
             flow_order = flow_order
 
@@ -105,8 +96,6 @@ workflow ExtractOptimizeSingleSample {
           h5_input = CompareToGroundTruth.compare_h5,
           input_vcf_name = base_file_name,
           disk_size = 10,
-          docker = jukebox_vc_docker,
-          monitoring_script = monitoring_script,
           score_key = score_key,
           no_address = true
     }
@@ -121,7 +110,6 @@ workflow ExtractOptimizeSingleSample {
               output_basename = base_file_name,
               disk_size = 3*ceil(size(AnnotateSampleVCF.output_vcf_file[idx], "GB")) + 14,
               docker = gatk_docker,
-              monitoring_script = monitoring_script,
               no_address = false
         }
     }
@@ -136,17 +124,15 @@ workflow ExtractOptimizeSingleSample {
 
 task ExtractSample {
     input {
-        File monitoring_script
         String sample_name
         File input_vcf
         File input_vcf_index
-        String docker
+        String docker = "gcr.io/terra-project-249020/jukebox_vc:test_jc_optimize_3d7509"
         Boolean no_address
     }
     String output_vcf = basename(input_vcf, ".vcf.gz") + ".~{sample_name}.vcf.gz"
     command <<<
         set -eo pipefail
-        bash ~{monitoring_script} > monitoring.log &
         source ~/.bashrc
         conda activate genomics.py3
         bcftools view -s ~{sample_name} ~{input_vcf} -o  tmp.vcf.gz -O z 
@@ -156,7 +142,6 @@ task ExtractSample {
         bcftools index -t ~{output_vcf}
     >>>
     output {
-        File monitoring_log = "monitoring.log"
         File output_vcf_file = "~{output_vcf}"
         File output_vcf_index = "~{output_vcf}.tbi"
     }
@@ -171,16 +156,15 @@ task ExtractSample {
 
 task FilterSampleVCF{
     input{
-        File monitoring_script
         File input_vcf
-        String docker
+        String docker = "gcr.io/terra-project-249020/jukebox_vc:test_jc_optimize_3d7509"
         Boolean no_address
     }
 
     String output_vcf = basename(input_vcf, ".vcf.gz") + ".filter_unused.vcf.gz"
 
     command <<<
-        bash ~{monitoring_script} > monitoring.log &
+        set -e
         source ~/.bashrc
         conda activate genomics.py3
         bcftools view -a -i 'GT[*]="alt"' ~{input_vcf} -o ~{output_vcf} -O z 
@@ -188,7 +172,6 @@ task FilterSampleVCF{
     >>>
 
     output {
-        File monitoring_log = "monitoring.log"
         File output_vcf_file = "~{output_vcf}"
         File output_vcf_index = "~{output_vcf}.tbi"
     }
@@ -204,17 +187,16 @@ task FilterSampleVCF{
 
 task FilterSymbolicAlleles {
     input {
-        File monitoring_script
         String base_file_name
         File input_vcf
         File input_vcf_index
         Boolean no_address
-        String docker
+        String docker = "gcr.io/terra-project-249020/jukebox_vc:test_jc_optimize_3d7509"
     }
 
     String output_vcf_name = "~{base_file_name}" + ".vcf.gz"
     command <<<
-        bash ~{monitoring_script} > monitoring.log &
+        set -e
         source ~/.bashrc
         conda activate genomics.py3
         gatk --java-options "-Xmx10g"  SelectVariants \
@@ -243,7 +225,6 @@ task FilterSymbolicAlleles {
 
 task CompareToGroundTruth {
   input {
-    File monitoring_script
     String left_sample_name
     String right_sample_name
     File input_vcf
@@ -263,14 +244,14 @@ task CompareToGroundTruth {
     String flow_order
     Array[File] annotation_intervals
     Int disk_size
-    String docker
+    String docker = "gcr.io/terra-project-249020/jukebox_vc:test_jc_optimize_3d7509"
     Boolean no_address
   }
 
   String used_flow_order = (if flow_order=="" then "TACG" else flow_order)
 
   command <<<
-    bash ~{monitoring_script} > monitoring.log &
+    set -e
 
     source ~/.bashrc
     conda activate genomics.py3
@@ -305,7 +286,6 @@ task CompareToGroundTruth {
   }
   output {
     File compare_h5 = "~{input_vcf_name}.comp.h5"
-    File monitoring_log = "monitoring.log"
     Array[File] comparison_beds = glob("~{input_vcf_name}.*.bed")
     File output_interval = "interval_~{input_vcf_name}.comp.bed"
   }
@@ -313,16 +293,15 @@ task CompareToGroundTruth {
 
 task EvaluateResults {
   input {
-    File monitoring_script
     File h5_input
     String input_vcf_name
     Int disk_size
-    String docker
+    String docker = "gcr.io/terra-project-249020/jukebox_vc:test_jc_optimize_3d7509"
     String score_key
     Boolean no_address
   }
   command <<<
-    bash ~{monitoring_script} > monitoring.log &
+    set -e
 
     source ~/.bashrc
     conda activate genomics.py3
@@ -343,7 +322,6 @@ task EvaluateResults {
   output {
     File eval_report_h5 = "~{input_vcf_name}.report.h5"
     File thresholds_report = "~{input_vcf_name}.report.thresholds.txt"
-    File monitoring_log = "monitoring.log"
   }
 }
 
@@ -355,14 +333,12 @@ task HardThresholdVCF {
     String output_basename
     String score_key
     Int disk_size
-    String docker
-    File monitoring_script
+    String docker = "gcr.io/terra-project-249020/jukebox_vc:test_jc_optimize_3d7509"
     Boolean no_address
   }
 
   command <<<
     set -eo pipefail
-    bash ~{monitoring_script} > monitoring.log &    
     
     tail -n +2 ~{thresholds} > ~{thresholds}.body
     cat ~{thresholds}.body | awk 'BEGIN { FS=","} \
@@ -391,8 +367,7 @@ task HardThresholdVCF {
 
   output {
     File output_vcf = "~{output_basename}.vcf.gz"
-    File output_vcf_index = "~{output_basename}.vcf.gz.tbi"    
-    File monitoring_log = "monitoring.log"
+    File output_vcf_index = "~{output_basename}.vcf.gz.tbi"
   }
 }
 
@@ -402,7 +377,7 @@ task AnnotateSampleVCF {
         File input_vcf_index
         String output_basename
         Int disk_size = ceil(size(input_vcf, "GB") * 2) + 50
-        String docker
+        String docker = "gcr.io/terra-project-249020/jukebox_vc:test_jc_optimize_3d7509"
         File ref_fasta
         File ref_fasta_index
         File ref_dict

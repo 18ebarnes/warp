@@ -5,7 +5,8 @@ import "../../../../../../tasks/broad/UltimaGenomicsGermlineJointFiltering.wdl" 
 import "../../../../../../tasks/broad/UltimaGenomicsGermlineFilteringThreshold.wdl" as FilteringThreshold
 
 
-# Joint Genotyping for hg38 Whole Genomes (has not been tested on hg19)
+# Joint Genotyping for hg38 Whole Genomes (has not been tested on hg19) sequenced with Ultima sequencer.
+# For choosing a filtering threshold (where on the ROC curve to filter) a sample with truth data is required.
 workflow UltimaGenomicsJointGenotyping {
 
   String pipeline_version = "1.0.0"
@@ -37,22 +38,20 @@ workflow UltimaGenomicsJointGenotyping {
     Float excess_het_threshold = 54.69
 
     #inputs for threshold filtering
-    String truth_sample_name = "NA12878"
+    String truth_sample_name
     File gtr_vcf
     File gtr_vcf_index
     File gtr_highconf_intervals
-    String sample_name_gtr = "HG001"
-    String flow_gatk_docker
-    File ref_fasta
-    File ref_fasta_index
-    File ref_dict
+    String sample_name_gtr
+    String gatk_docker
     File ref_fasta_sdf
     File runs_file
-    Array[File] annotations_intervals
+    Array[File] annotation_intervals
+    String flow_order
 
+    #inputs for training and applying filter model
     String snp_annotations
     String indel_annotations
-
     Boolean use_allele_specific_annotations
 
     Int? top_level_scatter_count
@@ -153,7 +152,7 @@ workflow UltimaGenomicsJointGenotyping {
       disk_size = medium_disk
   }
 
-  call Filtering.UltimaGenomicsGermlineJointFiltering {
+  call Filtering.UltimaGenomicsGermlineJointFiltering as TrainAndApplyFilteringModel {
     input:
       vcf = CalculateAverageAnnotations.output_vcf,
       vcf_index = CalculateAverageAnnotations.output_vcf_index,
@@ -167,29 +166,26 @@ workflow UltimaGenomicsJointGenotyping {
 
   call FilteringThreshold.ExtractOptimizeSingleSample as FindFilteringThresholdAndFilter {
     input:
-      input_vcf = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf,
-      input_vcf_index = UltimaGenomicsGermlineJointFiltering.variant_scored_vcf_index,
+      input_vcf = TrainAndApplyFilteringModel.variant_scored_vcf,
+      input_vcf_index = TrainAndApplyFilteringModel.variant_scored_vcf_index,
       base_file_name = callset_name,
       sample_name_calls = truth_sample_name,
       gtr_vcf = gtr_vcf,
       gtr_vcf_index = gtr_vcf_index,
       gtr_highconf_intervals = gtr_highconf_intervals,
       sample_name_gtr = sample_name_gtr,
-      gatk_docker = flow_gatk_docker,
-      #TODO: update these inputs
-      jukebox_vc_docker = "gcr.io/terra-project-249020/jukebox_vc:test_jc_optimize_3d7509",
-      flow_order = "TGCA",
+      gatk_docker = gatk_docker,
+      flow_order = flow_order,
       ref_fasta = ref_fasta,
       ref_fasta_index = ref_fasta_index,
       ref_dict = ref_dict,
-      ref_fasta_sdf = "gs://concordance/hg38/reference_sdf.tar",
-      runs_file = "gs://concordance/hg38/runs.conservative.bed",
-      annotation_intervals = ["gs://concordance/hg38/LCR-hs38.bed", "gs://concordance/hg38/mappability.0.bed", "gs://concordance/hg38/exome.twist.bed"],
-      score_key = "SCORE",
+      ref_fasta_sdf = ref_fasta_sdf,
+      runs_file = runs_file,
+      annotation_intervals = annotation_intervals,
       medium_disk = medium_disk
   }
 
-  scatter (idx in range(length(UltimaGenomicsGermlineJointFiltering.variant_scored_vcf))) {
+  scatter (idx in range(length(TrainAndApplyFilteringModel.variant_scored_vcf))) {
     # For large callsets we need to collect metrics from the shards and gather them later.
     if (!is_small_callset) {
       call Tasks.CollectVariantCallingMetrics as CollectMetricsSharded {
